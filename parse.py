@@ -154,6 +154,18 @@ def parse_class_file(file_path: str):
         return clazz
 
 
+def find_methods_by_name(clazz, name: bytes):
+    return [method
+            for method in clazz['methods']
+            if clazz['constant_pool'][method['name_index'] - 1]['bytes'] == name]
+
+
+def find_attributes_by_name(clazz, attributes, name: bytes):
+    return [attr
+            for attr in attributes
+            if clazz['constant_pool'][attr['attribute_name_index'] - 1]['bytes'] == name]
+
+
 if __name__ == '__main__':
     program, *args = sys.argv
     file_path, *args = args
