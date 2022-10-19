@@ -44,3 +44,118 @@ METHOD_ACCESS_FLAGS = [
     ("ACC_STRICT", 0x0800),
     ("ACC_SYNTHETIC", 0x1000),
 ]
+
+
+def parse_flags(value: int, flags: [(str, int)]) -> [str]:
+    return [name for (name, mask) in flags if (value & mask) != 0]
+
+
+def parse_u(f, n): return int.from_bytes(f.read(n), 'big')
+
+
+def parse_attributes(f, count):
+    '''
+    Attributes
+        u2 - attribute_name_index
+        u4 - attribute_length
+        u1 - info[attribute_length]
+    '''
+    attributes = []
+    for j in range(count):
+
+        attribute = {}
+        attribute['attribute_name_index'] = parse_u(f, 2)
+        attribute_length = parse_u(f, 4)
+        attribute['info'] = f.read(attribute_length)
+        attributes.append(attribute)
+    return attributes
+
+
+def parse_class_file(file_path: str):
+    with open(file_path, "rb") as f:
+        clazz = {}
+        clazz['magic'] = hex(parse_u(f, 4))
+        clazz['minor'] = parse_u(f, 2)
+        clazz['major'] = parse_u(f, 2)
+        constant_pool_count = parse_u(f, 2)
+        constant_pool = []
+
+        for i in range(constant_pool_count - 1):
+            cp_info = {}
+            tag = parse_u(f, 1)
+
+            if tag == Constants.METHOD_REF:
+                cp_info['tag'] = 'CONSTANT_Methodref'
+                cp_info['class_index'] = parse_u(f, 2)
+                cp_info['name_and_type_index'] = parse_u(f, 2)
+
+            if tag == Constants.CLASS:
+                cp_info['tag'] = 'CONSTANT_Class'
+                cp_info['name_index'] = parse_u(f, 2)
+
+            if tag == Constants.NAME_AND_TYPE:
+                cp_info['tag'] = 'CONSTANT_NameAndType'
+                cp_info['name_index'] = parse_u(f, 2)
+                cp_info['descriptor_index'] = parse_u(f, 2)
+
+            if tag == Constants.UTF8:
+                cp_info['tag'] = 'CONSTANT_Utf8'
+                length = parse_u(f, 2)
+                cp_info['bytes'] = f.read(length)
+
+            if tag == Constants.FIELD_REF:
+                cp_info['tag'] = 'CONSTANT_Fieldref'
+                cp_info['class_index'] = parse_u(f, 2)
+                cp_info['name_and_type_index'] = parse_u(f, 2)
+
+            if tag == Constants.STRING:
+                cp_info['tag'] = 'CONSTANT_String'
+                cp_info['string_index'] = parse_u(f, 2)
+
+            if not cp_info:
+                raise NotImplementedError(
+                    f"Unexpected constant tag \"{tag}\" in class file {file_path}")
+
+            constant_pool.append(cp_info)
+
+        clazz['constant_pool'] = constant_pool
+        clazz['access_flags'] = parse_flags(parse_u(f, 2), CLASS_ACCESS_FLAGS)
+        clazz['this_class'] = parse_u(f, 2)
+        clazz['super_class'] = parse_u(f, 2)
+
+        interfaces_count = parse_u(f, 2)
+        interfaces = []
+        for i in range(interfaces_count):
+            raise NotImplementedError("Interfaces are not supported :(")
+        clazz['interfaces'] = interfaces
+
+        fields_count = parse_u(f, 2)
+        fields = []
+        for i in range(fields_count):
+            raise NotImplementedError("Fields are not supported :(")
+        clazz['fields'] = fields
+
+        methods_count = parse_u(f, 2)
+        methods = []
+        for i in range(methods_count):
+            method = {}
+            method['access_flags'] = parse_flags(
+                parse_u(f, 2), METHOD_ACCESS_FLAGS)
+            method['name_index'] = parse_u(f, 2)
+            method['descriptor_index'] = parse_u(f, 2)
+            attributes_count = parse_u(f, 2)
+            method['attributes'] = parse_attributes(f, attributes_count)
+            methods.append(method)
+        clazz['methods'] = methods
+
+        attributes_count = parse_u(f, 2)
+        clazz['attributes'] = parse_attributes(f, attributes_count)
+
+        return clazz
+
+
+if __name__ == '__main__':
+    program, *args = sys.argv
+    file_path, *args = args
+    clazz = parse_class_file(file_path)
+    print(clazz)
