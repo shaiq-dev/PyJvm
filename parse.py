@@ -1,0 +1,46 @@
+import sys
+import io
+
+
+class Constants:
+    CLASS = 7
+    FIELD_REF = 9
+    METHOD_REF = 10
+    INTERFACE_METHOD_REF = 11
+    STRING = 8
+    INTEGER = 3
+    FLOAT = 4
+    LONG = 5
+    DOUBLE = 6
+    NAME_AND_TYPE = 12
+    UTF8 = 1
+    METHOD_HANDLE = 15
+    METHOD_TYPE = 16
+    INVOKE_DYNAMIC = 18
+
+
+CLASS_ACCESS_FLAGS = [
+    ("ACC_PUBLIC", 0x0001),
+    ("ACC_FINAL", 0x0010),
+    ("ACC_SUPER", 0x0020),
+    ("ACC_INTERFACE", 0x0200),
+    ("ACC_ABSTRACT", 0x0400),
+    ("ACC_SYNTHETIC", 0x1000),
+    ("ACC_ANNOTATION", 0x2000),
+    ("ACC_ENUM", 0x4000)
+]
+
+METHOD_ACCESS_FLAGS = [
+    ("ACC_PUBLIC", 0x0001),
+    ("ACC_PRIVATE", 0x0002),
+    ("ACC_PROTECTED", 0x0004),
+    ("ACC_STATIC", 0x0008),
+    ("ACC_FINAL", 0x0010),
+    ("ACC_SYNCHRONIZED", 0x0020),
+    ("ACC_BRIDGE", 0x0040),
+    ("ACC_VARARGS", 0x0080),
+    ("ACC_NATIVE", 0x0100),
+    ("ACC_ABSTRACT", 0x0400),
+    ("ACC_STRICT", 0x0800),
+    ("ACC_SYNTHETIC", 0x1000),
+]
