@@ -19,6 +19,14 @@ class Constants:
     INVOKE_DYNAMIC = 18
 
 
+class OpCodes:
+    GET_STATIC = 0xB2
+    LDC = 0x12
+    INVOKE_VIRTUAL = 0xB6
+    RETURN = 0xB1
+    BI_PUSH = 0x10
+
+
 CLASS_ACCESS_FLAGS = [
     ("ACC_PUBLIC", 0x0001),
     ("ACC_FINAL", 0x0010),
@@ -164,6 +172,18 @@ def find_attributes_by_name(clazz, attributes, name: bytes):
     return [attr
             for attr in attributes
             if clazz['constant_pool'][attr['attribute_name_index'] - 1]['bytes'] == name]
+
+
+def parse_code_attrs(info: bytes):
+    attrs = {}
+    with io.BytesIO(info) as f:
+        attrs['max_stack'] = parse_u(f, 2)
+        attrs['max_locals'] = parse_u(f, 2)
+        code_length = parse_u(f, 4)
+        attrs['code'] = f.read(code_length)
+        exception_table_length = parse_u(f, 2)
+
+        return attrs
 
 
 if __name__ == '__main__':
