@@ -186,8 +186,104 @@ def parse_code_attrs(info: bytes):
         return attrs
 
 
+def get_class_name(clazz, class_index: int) -> str:
+    return clazz['constant_pool'][clazz['constant_pool'][class_index - 1]['name_index'] - 1]['bytes'].decode('utf-8')
+
+
+def get_member_name(clazz, name_and_type_index: int) -> str:
+    return clazz['constant_pool'][clazz['constant_pool'][name_and_type_index - 1]['name_index'] - 1]['bytes'].decode('utf-8')
+
+
+def execute(clazz, code: bytes):
+    stack = []
+    with io.BytesIO(code) as f:
+
+        while f.tell() < len(code):
+            opcode = parse_u(f, 1)
+
+            if opcode == OpCodes.GET_STATIC:
+                index = parse_u(f, 2)
+                fieldref = clazz['constant_pool'][index - 1]
+                name_of_class = get_class_name(
+                    clazz, fieldref['class_index'])
+                name_of_member = get_member_name(
+                    clazz, fieldref['name_and_type_index'])
+                if name_of_class == 'java/lang/System' and name_of_member == 'out':
+                    stack.append({'type': 'FakePrintStream'})
+                else:
+                    raise NotImplementedError(
+                        f"Unsupported member {name_of_class}/{name_of_member} in getstatic instruction")
+
+            elif opcode == OpCodes.LDC:
+                index = parse_u(f, 1)
+                stack.append(
+                    {'type': 'Constant', 'const': clazz['constant_pool'][index - 1]})
+
+            elif opcode == OpCodes.INVOKE_VIRTUAL:
+                index = parse_u(f, 2)
+                methodref = clazz['constant_pool'][index - 1]
+                name_of_class = get_class_name(
+                    clazz, methodref['class_index'])
+                name_of_member = get_member_name(
+                    clazz, methodref['name_and_type_index'])
+                if name_of_class == 'java/io/PrintStream' and name_of_member == 'println':
+                    n = len(stack)
+                    if n < 2:
+                        raise RuntimeError(
+                            f'{name_of_class}/{name_of_member} expectes 2 arguments, but provided {n}')
+
+                    obj = stack[len(stack) - 2]
+                    if obj['type'] != 'FakePrintStream':
+                        raise NotImplementedError(
+                            f"Unsupported stream type {obj['type']}")
+
+                    arg = stack[len(stack) - 1]
+                    if arg['type'] == 'Constant':
+                        if arg['const']['tag'] == 'CONSTANT_String':
+                            print(clazz['constant_pool'][arg['const']
+                                  ['string_index'] - 1]['bytes'].decode('utf-8'))
+                        else:
+                            raise NotImplementedError(
+                                f"println for {arg['const']['tag']} is not implemented")
+
+                    elif arg['type'] == 'Integer':
+                        print(arg['value'])
+                    else:
+                        raise NotImplementedError(
+                            f"Support for {arg['type']} is not implemented")
+                else:
+                    raise NotImplementedError(
+                        f"Unknown method {name_of_class}/{name_of_member} in invokevirtual instruction")
+
+            elif opcode == OpCodes.RETURN:
+                return
+
+            elif opcode == OpCodes.BI_PUSH:
+                byte = parse_u(f, 1)
+                stack.append({'type': 'Integer', 'value': byte})
+
+            else:
+                raise NotImplementedError(f"Unknown opcode {hex(opcode)}")
+
+
 if __name__ == '__main__':
     program, *args = sys.argv
+
+    if len(args) == 0:
+        print(f"Usage: {program} <path/to/Main.class>")
+        print(f"ERROR: no path to Main.class was provided")
+        exit(1)
+
     file_path, *args = args
     clazz = parse_class_file(file_path)
-    print(clazz)
+    [main] = find_methods_by_name(clazz, b'main')
+    [code] = find_attributes_by_name(clazz, main['attributes'], b'Code')
+    code_attrib = parse_code_attrs(code['info'])
+
+    # Uncomment to see the parsed byte code
+    # print(clazz)
+    # print(main)
+    # print(code)
+    # print(code_attrib)
+
+    execute(clazz, code_attrib['code'])
